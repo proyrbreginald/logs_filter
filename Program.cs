@@ -1,47 +1,69 @@
 ﻿using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Linq;
 
-namespace LogFilter
+class Program
 {
-    class Program
+    private static readonly Regex InputFileRegex = new Regex(
+        @"^NavigationService\.g3log\..*\.log$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static readonly Regex LineRegex = new Regex(
+        @"^(\d{2}:\d{2}:\d{2} \d{3}\(\d{4}\)[A-F]/[a-zA-Z_]\w*:)\s*(?:|.*<===|.*===>|.*=|.*:|[a-zA-Z_]\w*(?: [a-zA-Z_]\w*)*)\s*([0-9a-fA-F]{1,2}(?:\s[0-9a-fA-F]{1,2}){7})(?:\s*|\s*,.*|\s*\[(?:(?:0x)?[0-9a-fA-F]{1,2}(?:\s*(?:0x)?[0-9a-fA-F]{1,2})*)\])$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
+        string currentDir = args.Length > 0 ? args[0] : Environment.CurrentDirectory;
+        string[] files = Directory
+            .GetFiles(currentDir, "*.log")
+            .Where(path => InputFileRegex.IsMatch(Path.GetFileName(path)))
+            .ToArray();
+
+        if (files.Length == 0)
         {
-            string pattern = @"\d{2}:\d{2}:\d{2} \d{3}\(\d{4}\).*[^0-9a-fA-F][^0-9a-fA-F](?:\s*[0-9a-fA-F]{1,2}){1}(?:\s[0-9a-fA-F]{1,2}){7}";
-            Regex regex = new Regex(pattern);
-            string outputFileName = "output.txt";
+            Console.WriteLine($"No files matched in directory: {currentDir}");
+            return;
+        }
+
+        foreach (string file in files)
+        {
+            string inputName = Path.GetFileName(file);
+            string outputName = "can_service" + inputName.Substring("NavigationService".Length);
+            string outputPath = Path.Combine(currentDir, outputName);
+
+            Console.WriteLine($"Processing: {inputName} -> {outputName}");
 
             try
             {
-                string currentDirectory = Directory.GetCurrentDirectory();
-                string[] logFiles = Directory.GetFiles(currentDirectory, "*.log");
-
-                Console.WriteLine($"找到 {logFiles.Length} 个 .log 文件，正在处理...");
-
-                using (StreamWriter writer = new StreamWriter(outputFileName))
+                int matchCount = 0;
+                using (StreamReader reader = new StreamReader(file))
+                using (StreamWriter writer = new StreamWriter(outputPath))
                 {
-                    foreach (string filePath in logFiles)
+                    string? line;
+                    while ((line = reader.ReadLine()) != null)
                     {
-                        if (Path.GetFileName(filePath).Equals(outputFileName, StringComparison.OrdinalIgnoreCase))
-                            continue;
-
-                        Console.WriteLine($"正在处理: {Path.GetFileName(filePath)}");
-                        foreach (string line in File.ReadLines(filePath))
+                        Match match = LineRegex.Match(line);
+                        if (match.Success)
                         {
-                            if (regex.IsMatch(line))
-                            {
-                                writer.WriteLine(line);
-                            }
+                            string prefix = match.Groups[1].Value;
+                            string hexGroup = match.Groups[2].Value.Trim();
+                            string[] hexArray = hexGroup.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            string replacedHex = "[" + string.Join(" ", hexArray.Select(h => "0x" + h.ToUpper())) + "]";
+
+                            writer.WriteLine(prefix + replacedHex);
+                            matchCount++;
                         }
                     }
                 }
-                Console.WriteLine($"处理完成。结果已保存至: {outputFileName}");
+                Console.WriteLine($" -> Completed. {matchCount} lines reformatted.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"发生错误: {ex.Message}");
+                Console.WriteLine($" -> Error processing file: {ex.Message}");
             }
         }
+        Console.WriteLine("\nAll tasks finished.");
     }
 }
