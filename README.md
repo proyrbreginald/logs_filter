@@ -16,7 +16,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## AI提示词
 
-```
+```typst
 我需要完成以下功能：
 1.处理同级目录下所有名称匹配这个正则表达式的文件：^NavigationService\.g3log\.*\.log$
 2.处理每个文件时，对所有行进行正则匹配：^\d{2}:\d{2}:\d{2} \d{3}\(\d{4}\)[A-F]/[a-zA-Z_]\w*:\s*(?:|.*<===|.*===>|.*=|.*:|[a-zA-Z_]\w*(?: [a-zA-Z_]\w*)*)(?:\s*[0-9a-fA-F]{1,2}){1}(?:\s[0-9a-fA-F]{1,2}){7}(?:\s*|\s*,.*|\s*\[(?:(?:0x)?[0-9a-fA-F]{1,2}(?:\s*(?:0x)?[0-9a-fA-F]{1,2})*)\])$
